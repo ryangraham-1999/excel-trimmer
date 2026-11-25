@@ -17,12 +17,28 @@ Private Const LISTED_COLS As Long = 7
 Private Const BOX_TITLE As String = "Trimmer self-test"
 
 Public Sub RunSelfTest()
-    ShowResult SelfTestResult(False)
+    ShowResult QuietSelfTest(False)
 End Sub
 
 Public Sub RunSelfTestWithCanary()
-    ShowResult SelfTestResult(True)
+    ShowResult QuietSelfTest(True)
 End Sub
+
+' The self-test with Excel's screen drawing off, so the case workbooks do not flash on the screen
+' (owner's request, 2026-11-25). Drawing is put back as it was on every way out, errors included.
+Private Function QuietSelfTest(ByVal includeCanary As Boolean) As String
+    Dim screenWas As Boolean, errNumber As Long, errText As String
+    screenWas = Application.ScreenUpdating
+    On Error GoTo Restore
+    Application.ScreenUpdating = False
+    QuietSelfTest = SelfTestResult(includeCanary)
+Restore:
+    errNumber = Err.Number
+    errText = Err.Description
+    On Error Resume Next
+    Application.ScreenUpdating = screenWas
+    If errNumber <> 0 Then QuietSelfTest = "TRIMMER FAIL: the self-test stopped: error " & errNumber & " " & errText
+End Function
 
 ' The result in a box: the lines above, and the whole text in the box's field, already
 ' selected, for Ctrl+C (owner's answer 1a, SB.5).
