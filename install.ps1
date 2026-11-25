@@ -53,11 +53,18 @@
         if (-not (Test-Path $addInFolder)) { New-Item -ItemType Directory -Path $addInFolder | Out-Null }
         $wb.SaveAs($target, 55)
         $wb.Close($false)
+        # Excel refuses AddIns.Add while no workbook is open ("Unable to get the Add property of the AddIns
+        # class"), so a blank workbook stays open for it and is closed again without saving.
+        $keep = $xl.Workbooks.Add()
         $added = $xl.AddIns.Add($target, $false)
         $added.Installed = $true
+        $isOn = $false
+        foreach ($a in @($xl.AddIns)) { if ($a.Name -eq $addInName -and $a.Installed) { $isOn = $true } }
+        $keep.Close($false)
+        if (-not $isOn) { Say ('the add-in was saved to ' + $target + ' but Excel did not switch it on. Tell the coordinator.'); return }
         Say 'installed. Close every Excel window, open the Keyloop export again, then press Ctrl+Shift+T to trim it (Ctrl+Shift+Y runs the self-test).'
     }
-    catch { Say ('stopped: ' + $_.Exception.Message + ' If the trimmer is already installed, close every Excel window and run the line again.') }
+    catch { Say ('stopped: ' + $_.Exception.Message + ' (' + $_.InvocationInfo.Line.Trim() + ') If the trimmer is already installed, close every Excel window and run the line again.') }
     finally {
         if ($xl) { try { $xl.Quit() } catch { }; try { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($xl) } catch { } }
         if ($changed) {
